@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
 CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
-REDIRECT_URI = "http://localhost:5000/oauth2callback"
+REDIRECT_URI = "https://ads.factum.work/oauth2callback"
 SCOPE = "https://www.googleapis.com/auth/adwords"
 TEMP_TOKEN_PATH = "tmp_refresh_token.json"
 
@@ -58,5 +58,5 @@ def callback():
     return f"Ошибка: {response.text}"
 
 if __name__ == "__main__":
-    webbrowser.open("http://localhost:5000/")
-    app.run(port=5000)
+    webbrowser.open("https://ads.factum.work:5000/")
+    app.run(host="0.0.0.0", port=5000)
