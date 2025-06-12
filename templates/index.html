@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Ads Keyword Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; }
+        table { border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+        th { background-color: #f2f2f2; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Google Ads Keyword Planner</h1>
+    <form method="post">
+        <label for="keywords">Ключевые слова (по одному на строку):</label><br>
+        <textarea name="keywords" rows="10" placeholder="Одно слово на строку..."></textarea><br><br>
+        
+        <label for="city">Геотаргетинг:</label>
+        <select name="city" id="city">
+            <option value="kazakhstan">Весь Казахстан</option>
+            <option value="almaty">Алматы (9063099)</option>
+            <option value="astana">Астана (1009806)</option>
+            <option value="almaty_region">Алматинская область (9070290)</option>
+            <option value="akmola_region">Акмолинская область (9070289)</option>
+            <option value="shymkent">Шымкент (1009809)</option>
+            <option value="taraz">Тараз (9063096)</option>
+            <option value="aktobe">Актобе (9063098)</option>
+            <option value="karaganda">Караганда (9063097)</option>
+            <option value="pavlodar">Павлодар (1009816)</option>
+            <option value="kyzylorda">Кызылорда (9063094)</option>
+            <option value="uralsk">Уральск (1009815)</option>
+            <option value="oskemen">Оскемен (9063095)</option>
+            <option value="kostanay">Костанай (1009813)</option>
+            <option value="semey">Семей (1009818)</option>
+            <option value="taldykorgan">Талдыкорган (9063093)</option>
+            <option value="aktau">Актау (9198063)</option>
+            <option value="petropavl">Петропавл (1009817)</option>
+            <option value="almaty_district">Алматинский район (9195897)</option>
+        </select><br><br>
+        
+        <button type="submit">Показать данные</button>
+        <button type="submit" name="download" value="1">Скачать Excel</button>
+    </form>
+
+    {% if error %}
+        <div class="error">
+            <h3>Ошибка:</h3>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+
+
+        <h3>Суммарные данные по выбранным ключевым словам:</h3>
+        <table id="summary-table">
+            <tr>
+                <th>Компания</th>
+                <th>Регион</th>
+                <th>Показы</th>
+                <th>Клики</th>
+                <th>CTR %</th>
+                <th>CPC,<br>(для Google $)</th>
+                <th>Бюджет<br>(для Google $)</th>
+                <th>Приблезительное<br>количество конверсий</th>
+                <th>Стоимость конверсии<br>(для Google $)</th>
+            </tr>
+            <tr>
+                <td>Поиск Пессимистично</td>
+                <td id="pessimistic-region">Регион</td>
+                <td id="pessimistic-pokazov">0</td>
+                <td id="pessimistic-clicks">0</td>
+                <td id="pessimistic-ctr">10%</td>
+                <td id="pessimistic-cpc">0</td>
+                <td id="pessimistic-budget">0</td>
+                <td id="pessimistic-convers">0</td>
+                <td id="pessimistic-cost">0</td>
+            </tr>
+            <tr>
+                <td>Поиск Оптимистично</td>
+                <td id="optimistic-region">Регион</td>
+                <td id="optimistic-pokazov">0</td>
+                <td id="optimistic-clicks">0</td>
+                <td id="optimistic-ctr">15%</td>
+                <td id="optimistic-cpc">0</td>
+                <td id="optimistic-budget">0</td>
+                <td id="optimistic-convers">0</td>
+                <td id="optimistic-cost">0</td>
+            </tr>
+        </table>
+
+
+    {% if results %}
+
+    <form id="keywords-form" method="POST">
+        <br>
+        <button type="button" onclick="calculate()">Получить Медиа план</button>
+        <br><br>
+        <h2>Результаты:</h2>
+        <table>
+            <tr>
+                <th>Выбрать</th>
+                <th>Ключевое слово</th>
+                <th>Показов/мес</th>
+                <th>Конкуренция</th>
+                <th>Ставка (низкая)</th>
+                <th>Ставка (высокая)</th>
+            </tr>
+            {% for row in results %}
+            <tr>
+                <td><input type="checkbox" class="keyword-checkbox" data-shows="{{ row.avg_monthly_searches }}" data-low-bid="{{ row.low_bid }}" data-high-bid="{{ row.high_bid }}" value="{{ row.text }}"></td>
+                <td>{{ row.text }}</td>
+                <td>{{ row.avg_monthly_searches }}</td>
+                <td>{{ row.competition }}</td>
+                <td>{{ row.low_bid }}</td>
+                <td>{{ row.high_bid }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <br>
+    </form>
+
+{% endif %}
+
+
+<script>
+function calculate() {
+    const stats = {
+        pessimistic: { ctr: 0.10, convRate: 0.05, shows: 0, clicks: 0, budget: 0, conv: 0 },
+        optimistic: { ctr: 0.15, convRate: 0.12, shows: 0, clicks: 0, budget: 0, conv: 0 }
+    };
+
+    // Получаем выбранный регион
+    const regionSelect = document.getElementById('city');
+    const selectedRegion = regionSelect.options[regionSelect.selectedIndex].text.split(' (')[0]; // Убираем ID в скобках
+
+    document.querySelectorAll(".keyword-checkbox:checked").forEach(checkbox => {
+        const shows = parseInt(checkbox.dataset.shows) || 0;
+        const lowBid = parseFloat(checkbox.dataset.lowBid) || 0;
+        const highBid = parseFloat(checkbox.dataset.highBid) || 0;
+
+        // Расчет для пессимистичного сценария
+        const clicksPess = Math.round(shows * stats.pessimistic.ctr);
+        stats.pessimistic.shows += shows;
+        stats.pessimistic.clicks += clicksPess;
+        stats.pessimistic.budget += Math.round(clicksPess * lowBid);
+        stats.pessimistic.conv += Math.round(clicksPess * stats.pessimistic.convRate);
+
+        // Расчет для оптимистичного сценария
+        const clicksOpt = Math.round(shows * stats.optimistic.ctr);
+        stats.optimistic.shows += shows;
+        stats.optimistic.clicks += clicksOpt;
+        stats.optimistic.budget += Math.round(clicksOpt * highBid);
+        stats.optimistic.conv += Math.round(clicksOpt * stats.optimistic.convRate);
+    });
+
+    // Обновляем таблицу
+    for (const type in stats) {
+        const data = stats[type];
+        const cpc = data.clicks ? (data.budget / data.clicks).toFixed(2) : "0.00";
+        const cost = data.conv ? (data.budget / data.conv).toFixed(2) : "0.00";
+        
+        document.getElementById(`${type}-pokazov`).textContent = data.shows;
+        document.getElementById(`${type}-clicks`).textContent = data.clicks;
+        document.getElementById(`${type}-cpc`).textContent = cpc;
+        document.getElementById(`${type}-budget`).textContent = data.budget;
+        document.getElementById(`${type}-convers`).textContent = data.conv;
+        document.getElementById(`${type}-cost`).textContent = cost;
+        
+        // Заполняем регион для обоих строк
+        document.querySelector(`#${type}-region`).textContent = selectedRegion;
+    }
+}
+
+// При загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const savedCity = localStorage.getItem('selectedCity');
+    if (savedCity) {
+        document.getElementById('city').value = savedCity;
+    }
+});
+
+// При выборе города
+document.getElementById('city').addEventListener('change', function() {
+    localStorage.setItem('selectedCity', this.value);
+});
+</script>
+
+
+</body>
+</html>
